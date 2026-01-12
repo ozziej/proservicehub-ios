@@ -53,6 +53,7 @@ final class CompanySearchViewModel: ObservableObject {
     private lazy var api = LabourLinkAPI(tokenProvider: { [weak self] in
         self?.token
     })
+    private let locationSearchService = LocationSearchService()
     private var searchTask: Task<Void, Never>?
     private var suggestionTask: Task<Void, Never>?
     private var detailTask: Task<Void, Never>?
@@ -124,14 +125,11 @@ final class CompanySearchViewModel: ObservableObject {
 
         suggestionTask = Task {
             do {
-                let response = try await api.searchPlaces(query: trimmedQuery)
+                try await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
-                if response.didSucceed {
-                    token = response.token ?? token
-                    locationSuggestions = response.places
-                } else {
-                    locationSuggestions = []
-                }
+                let places = try await locationSearchService.searchPlaces(query: trimmedQuery)
+                guard !Task.isCancelled else { return }
+                locationSuggestions = Array(places.prefix(10))
             } catch {
                 guard !Task.isCancelled else { return }
                 locationSuggestions = []

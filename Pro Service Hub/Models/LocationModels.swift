@@ -61,6 +61,22 @@ struct Place: Decodable, Identifiable {
         coordinate = CLLocationCoordinate2D(latitude: latValue, longitude: lonValue)
     }
 
+    init(placeId: Int?,
+         name: String?,
+         displayName: String?,
+         type: String?,
+         importance: Double?,
+         boundingBox: [Double]?,
+         coordinate: CLLocationCoordinate2D) {
+        self.placeId = placeId
+        self.name = name
+        self.displayName = displayName
+        self.type = type
+        self.importance = importance
+        self.boundingBox = boundingBox
+        self.coordinate = coordinate
+    }
+
     private static func decodeCoordinate(from container: KeyedDecodingContainer<CodingKeys>, key: CodingKeys) throws -> Double {
         if let doubleValue = try container.decodeIfPresent(Double.self, forKey: key) {
             return doubleValue
