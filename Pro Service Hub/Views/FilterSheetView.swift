@@ -58,6 +58,7 @@ struct FilterSheetView: View {
             TextField("Search services", text: $serviceSearchTerm)
                 .textInputAutocapitalization(.none)
                 .disableAutocorrection(true)
+                .clearButton(text: $serviceSearchTerm)
 
             if !selectedServiceNames.isEmpty {
                 Text("\(selectedServiceNames.count) service(s) selected")
@@ -78,6 +79,7 @@ struct FilterSheetView: View {
                     TextField("Name or phone number", text: $searchText)
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(true)
+                        .clearButton(text: $searchText)
                 }
 
                 Section("Services") {

@@ -74,7 +74,9 @@ struct LabourLinkAPI {
 
         let (data, response) = try await session.data(for: request)
         try validate(response: response)
-        return try JSONDecoder().decode(PlaceResponse.self, from: data)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(PlaceResponse.self, from: data)
     }
 
     func fetchCatalogs(searchString: String = "") async throws -> CatalogListResponse {

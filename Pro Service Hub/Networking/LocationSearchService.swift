@@ -22,8 +22,7 @@ struct LocationSearchService {
             throw APIError.invalidResponse
         }
         components.queryItems = [
-            URLQueryItem(name: "city", value: trimmedQuery),
-            URLQueryItem(name: "suburb", value: trimmedQuery),
+            URLQueryItem(name: "q", value: trimmedQuery),
             URLQueryItem(name: "format", value: "json"),
             URLQueryItem(name: "addressdetails", value: "0"),
             URLQueryItem(name: "limit", value: "\(limit)")

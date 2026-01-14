@@ -13,6 +13,8 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var cameraPosition: MapCameraPosition = .region(.defaultSearchRegion)
     @State private var isShowingFilters = false
+    @State private var isUpdatingMapProgrammatically = false
+    @State private var lastObservedMapCenter = CompanySearchFilters.defaultCenter
 
     var body: some View {
         NavigationStack {
@@ -35,7 +37,9 @@ struct ContentView: View {
                 viewModel.updateUserLocation(coordinate)
             }
             .onReceive(viewModel.$mapRegion) { region in
+                isUpdatingMapProgrammatically = true
                 cameraPosition = .region(region)
+                lastObservedMapCenter = region.center
             }
             .sheet(isPresented: $isShowingFilters) {
                 FilterSheetView(isPresented: $isShowingFilters,
@@ -85,6 +89,10 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                 TextField("City, suburb, or landmark", text: $viewModel.locationQuery)
                     .textFieldStyle(.roundedBorder)
+                    .clearButton(text: $viewModel.locationQuery) {
+                        viewModel.locationQuery = ""
+                        viewModel.lookupLocations(for: "")
+                    }
                     .onChange(of: viewModel.locationQuery, initial: false) { _, newValue in
                         viewModel.lookupLocations(for: newValue)
                     }
@@ -185,6 +193,23 @@ struct ContentView: View {
                     }
                 }
             }
+            .onMapCameraChange(frequency: .onEnd) { context in
+                handleMapCenterChange(center: context.region.center)
+            }
+            .overlay(alignment: .topTrailing) {
+                if viewModel.isLoading {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                        Text("Updating…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(8)
+                    .background(.thinMaterial)
+                    .clipShape(Capsule())
+                    .padding(8)
+                }
+            }
             .frame(height: 280)
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
@@ -192,6 +217,18 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func handleMapCenterChange(center: CLLocationCoordinate2D) {
+        if isUpdatingMapProgrammatically {
+            isUpdatingMapProgrammatically = false
+            return
+        }
+        let delta = hypot(center.latitude - lastObservedMapCenter.latitude,
+                          center.longitude - lastObservedMapCenter.longitude)
+        guard delta > 0.0001 else { return }
+        lastObservedMapCenter = center
+        viewModel.updateMapCenterFromUserInteraction(center)
     }
 
 private var resultsSection: some View {

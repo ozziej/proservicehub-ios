@@ -56,6 +56,7 @@ final class CompanySearchViewModel: ObservableObject {
     private let locationSearchService = LocationSearchService()
     private var searchTask: Task<Void, Never>?
     private var suggestionTask: Task<Void, Never>?
+    private var mapSearchTask: Task<Void, Never>?
     private var detailTask: Task<Void, Never>?
     private var hasLoadedInitialResults = false
     private var userHasPinnedLocation = false
@@ -72,6 +73,7 @@ final class CompanySearchViewModel: ObservableObject {
     deinit {
         searchTask?.cancel()
         suggestionTask?.cancel()
+        mapSearchTask?.cancel()
         detailTask?.cancel()
     }
 
@@ -127,9 +129,10 @@ final class CompanySearchViewModel: ObservableObject {
             do {
                 try await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
-                let places = try await locationSearchService.searchPlaces(query: trimmedQuery)
+                let response = try await api.searchPlaces(query: trimmedQuery)
                 guard !Task.isCancelled else { return }
-                locationSuggestions = Array(places.prefix(10))
+                token = response.token ?? token
+                locationSuggestions = Array(response.places.prefix(10))
             } catch {
                 guard !Task.isCancelled else { return }
                 locationSuggestions = []
@@ -170,6 +173,20 @@ final class CompanySearchViewModel: ObservableObject {
         filters.updateCenter(CompanySearchFilters.defaultCenter)
         locationQuery = ""
         updateMapRegion(center: filters.center)
+    }
+
+    func updateMapCenterFromUserInteraction(_ center: CLLocationCoordinate2D) {
+        userHasPinnedLocation = true
+        mapSearchTask?.cancel()
+        mapSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            locationQuery = ""
+            locationSuggestions = []
+            filters.updateCenter(center)
+            updateMapRegion(center: center)
+            await searchCompanies()
+        }
     }
 
     func clearAdvancedFilters() {
