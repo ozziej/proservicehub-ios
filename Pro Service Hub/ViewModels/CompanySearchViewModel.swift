@@ -49,9 +49,9 @@ final class CompanySearchViewModel: ObservableObject {
     }
 
     private var filters: CompanySearchFilters
-    private var token: String?
-    private lazy var api = LabourLinkAPI(tokenProvider: { [weak self] in
-        self?.token
+    private let session: AppSession
+    private lazy var api = LabourLinkAPI(tokenProvider: { [weak session] in
+        session?.token
     })
     private let locationSearchService = LocationSearchService()
     private var searchTask: Task<Void, Never>?
@@ -62,7 +62,8 @@ final class CompanySearchViewModel: ObservableObject {
     private var userHasPinnedLocation = false
     private var lastAutomaticCoordinate: CLLocationCoordinate2D?
 
-    init() {
+    init(session: AppSession) {
+        self.session = session
         filters = CompanySearchFilters(center: CompanySearchFilters.defaultCenter)
         mapRegion = MKCoordinateRegion(center: filters.center,
                                        span: MKCoordinateSpan(latitudeDelta: 0.35, longitudeDelta: 0.35))
@@ -100,7 +101,7 @@ final class CompanySearchViewModel: ObservableObject {
                 requestFilters.radiusMeters = Int(radiusInMeters.rounded())
                 let response = try await api.fetchCompanies(filters: requestFilters)
                 guard !Task.isCancelled else { return }
-                token = response.token ?? token
+                session.updateToken(response.token)
                 if response.didSucceed {
                     companies = response.companies
                 } else {
@@ -131,7 +132,7 @@ final class CompanySearchViewModel: ObservableObject {
                 guard !Task.isCancelled else { return }
                 let response = try await api.searchPlaces(query: trimmedQuery)
                 guard !Task.isCancelled else { return }
-                token = response.token ?? token
+                session.updateToken(response.token)
                 locationSuggestions = Array(response.places.prefix(10))
             } catch {
                 guard !Task.isCancelled else { return }
@@ -282,7 +283,7 @@ final class CompanySearchViewModel: ObservableObject {
             let detailResponse = try await api.fetchCompanyDetail(companyID: company.uuid)
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
-            token = detailResponse.token ?? token
+            session.updateToken(detailResponse.token)
             if detailResponse.didSucceed {
                 companyDetail = detailResponse.company
             } else {

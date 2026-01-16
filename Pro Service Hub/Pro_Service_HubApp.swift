@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Pro_Service_HubApp: App {
+    @StateObject private var session = AppSession()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootTabView(session: session)
+                .environmentObject(session)
         }
     }
 }

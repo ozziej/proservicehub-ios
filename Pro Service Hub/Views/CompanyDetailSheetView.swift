@@ -16,9 +16,13 @@ struct CompanyDetailSheetView: View {
     let isLoading: Bool
     let errorMessage: String?
     let userCoordinate: CLLocationCoordinate2D?
+    @ObservedObject var session: AppSession
     let onRefresh: () -> Void
 
     @State private var mapPosition: MapCameraPosition
+    @State private var isShowingBooking = false
+    @State private var isShowingLogin = false
+    @StateObject private var bookingViewModel: CompanyBookingViewModel
 
     init(summary: CompanyWithRating,
          detail: CompanyDetail?,
@@ -27,6 +31,7 @@ struct CompanyDetailSheetView: View {
          isLoading: Bool,
          errorMessage: String?,
          userCoordinate: CLLocationCoordinate2D?,
+         session: AppSession,
          onRefresh: @escaping () -> Void) {
         self.summary = summary
         self.detail = detail
@@ -35,10 +40,12 @@ struct CompanyDetailSheetView: View {
         self.isLoading = isLoading
         self.errorMessage = errorMessage
         self.userCoordinate = userCoordinate
+        self.session = session
         self.onRefresh = onRefresh
         _mapPosition = State(initialValue: .region(CompanyDetailSheetView.region(for: summary,
                                                                                 detail: detail,
                                                                                 serviceAreas: serviceAreas)))
+        _bookingViewModel = StateObject(wrappedValue: CompanyBookingViewModel(companyUuid: summary.uuid, session: session))
     }
 
     private var targetRegion: MKCoordinateRegion {
@@ -74,6 +81,7 @@ struct CompanyDetailSheetView: View {
 
                     overviewSection
                     servicesSection
+                    bookingSection
                     businessHoursSection
                     serviceAreasSection
                     mapSection
@@ -95,6 +103,21 @@ struct CompanyDetailSheetView: View {
         }
         .task(id: regionAnchorKey) {
             mapPosition = .region(targetRegion)
+        }
+        .sheet(isPresented: $isShowingLogin) {
+            LoginView(session: session)
+        }
+        .onChange(of: bookingViewModel.needsLogin) { _, needsLogin in
+            if needsLogin {
+                bookingViewModel.needsLogin = false
+                isShowingLogin = true
+            }
+        }
+        .onChange(of: session.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                isShowingLogin = false
+                isShowingBooking = true
+            }
         }
     }
 
@@ -176,6 +199,38 @@ struct CompanyDetailSheetView: View {
                         Divider()
                     }
                 }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemBackground)))
+    }
+
+    private var bookingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Appointments")
+                .font(.headline)
+
+            if session.isAuthenticated {
+                if isShowingBooking {
+                    BookingCardView(viewModel: bookingViewModel, companyName: detail?.name ?? summary.name)
+                }
+
+                HStack {
+                    Button(isShowingBooking ? "Hide Booking" : "Book Appointment") {
+                        isShowingBooking.toggle()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            } else {
+                Text("Log in or create an account to schedule an appointment.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Button("Book Appointment") {
+                    isShowingLogin = true
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
         .padding()

@@ -36,6 +36,8 @@ struct LabourLinkAPI {
     let session: URLSession
     let baseURL: URL
     var tokenProvider: () -> String?
+    private static let bookingDateDecoder = BookingDateCodec.decoder
+    private static let bookingDateEncoder = BookingDateCodec.encoder
 
     init(session: URLSession = .shared,
          baseURL: URL = LabourLinkEnvironment.baseURL,
@@ -129,6 +131,142 @@ struct LabourLinkAPI {
         return try JSONDecoder().decode(CompanyAreasResponse.self, from: data)
     }
 
+    func loginUser(request: LoginRequest) async throws -> UserResponse {
+        var requestUrl = URLRequest(url: baseURL.appendingPathComponent("users/login"))
+        requestUrl.httpMethod = "POST"
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Accept")
+        requestUrl.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: requestUrl)
+        try validate(response: response)
+        return try JSONDecoder().decode(UserResponse.self, from: data)
+    }
+
+    func createAccount(request: CreateAccountRequest) async throws -> UserResponse {
+        var requestUrl = URLRequest(url: baseURL.appendingPathComponent("users/createAccount"))
+        requestUrl.httpMethod = "POST"
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Accept")
+        requestUrl.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: requestUrl)
+        try validate(response: response)
+        return try JSONDecoder().decode(UserResponse.self, from: data)
+    }
+
+    func updateUser(_ user: User) async throws -> UserResponse {
+        var requestUrl = URLRequest(url: baseURL.appendingPathComponent("users/updateUser"))
+        requestUrl.httpMethod = "PUT"
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Accept")
+        requestUrl.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+        requestUrl.httpBody = try JSONEncoder().encode(user)
+
+        let (data, response) = try await session.data(for: requestUrl)
+        try validate(response: response)
+        return try JSONDecoder().decode(UserResponse.self, from: data)
+    }
+
+    func createBooking(_ booking: BookingRequest) async throws -> BookingResponse {
+        var requestUrl = URLRequest(url: baseURL.appendingPathComponent("booking/create"))
+        requestUrl.httpMethod = "POST"
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Accept")
+        requestUrl.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+        requestUrl.httpBody = try Self.bookingDateEncoder.encode(booking)
+
+        let (data, response) = try await session.data(for: requestUrl)
+        try validate(response: response)
+        return try Self.bookingDateDecoder.decode(BookingResponse.self, from: data)
+    }
+
+    func updateBooking(_ booking: BookingRequest) async throws -> BookingResponse {
+        var requestUrl = URLRequest(url: baseURL.appendingPathComponent("booking/update"))
+        requestUrl.httpMethod = "POST"
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        requestUrl.setValue("application/json", forHTTPHeaderField: "Accept")
+        requestUrl.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+        requestUrl.httpBody = try Self.bookingDateEncoder.encode(booking)
+
+        let (data, response) = try await session.data(for: requestUrl)
+        try validate(response: response)
+        return try Self.bookingDateDecoder.decode(BookingResponse.self, from: data)
+    }
+
+    func getCompanyBookings(companyUuid: String, month: Int, year: Int) async throws -> BookingListResponse {
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("booking/getCompanyBookings"), resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidResponse
+        }
+        components.queryItems = [
+            URLQueryItem(name: "companyUuid", value: companyUuid),
+            URLQueryItem(name: "month", value: "\(month)"),
+            URLQueryItem(name: "year", value: "\(year)")
+        ]
+        guard let url = components.url else {
+            throw APIError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try Self.bookingDateDecoder.decode(BookingListResponse.self, from: data)
+    }
+
+    func getUserBookings(userUuid: String, month: Int, year: Int) async throws -> BookingListResponse {
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("booking/getUserBookings"), resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidResponse
+        }
+        components.queryItems = [
+            URLQueryItem(name: "userUuid", value: userUuid),
+            URLQueryItem(name: "month", value: "\(month)"),
+            URLQueryItem(name: "year", value: "\(year)")
+        ]
+        guard let url = components.url else {
+            throw APIError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try Self.bookingDateDecoder.decode(BookingListResponse.self, from: data)
+    }
+
+    func getUserCompanyBookings(userUuid: String, companyUuid: String) async throws -> BookingListResponse {
+        guard var components = URLComponents(url: baseURL.appendingPathComponent("booking/getUserCompanyBookings"), resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidResponse
+        }
+        components.queryItems = [
+            URLQueryItem(name: "userUuid", value: userUuid),
+            URLQueryItem(name: "companyUuid", value: companyUuid)
+        ]
+        guard let url = components.url else {
+            throw APIError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try Self.bookingDateDecoder.decode(BookingListResponse.self, from: data)
+    }
+
+    func deleteBooking(bookingUuid: String) async throws -> BookingResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("booking/delete/\(bookingUuid)"))
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try Self.bookingDateDecoder.decode(BookingResponse.self, from: data)
+    }
+
     private func validate(response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -145,6 +283,67 @@ struct LabourLinkAPI {
         }
         return "Bearer \(token)"
     }
+}
+
+private enum BookingDateCodec {
+    static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+            if let date = iso8601WithFractional.date(from: value) {
+                return date
+            }
+            if let date = iso8601NoFractional.date(from: value) {
+                return date
+            }
+            if let date = localDateTime.date(from: value) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid bookingTime format")
+        }
+        return decoder
+    }()
+
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let value = localDateTimeLocal.string(from: date)
+            try container.encode(value)
+        }
+        return encoder
+    }()
+
+    private static let iso8601WithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let iso8601NoFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let localDateTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter
+    }()
+
+    private static let localDateTimeLocal: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter
+    }()
 }
 
 struct CompanySearchRequest: Encodable {

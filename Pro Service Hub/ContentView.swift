@@ -9,12 +9,18 @@ import SwiftUI
 import MapKit
 
 struct ContentView: View {
-    @StateObject private var viewModel = CompanySearchViewModel()
+    private let session: AppSession
+    @StateObject private var viewModel: CompanySearchViewModel
     @StateObject private var locationManager = LocationManager()
     @State private var cameraPosition: MapCameraPosition = .region(.defaultSearchRegion)
     @State private var isShowingFilters = false
     @State private var isUpdatingMapProgrammatically = false
     @State private var lastObservedMapCenter = CompanySearchFilters.defaultCenter
+
+    init(session: AppSession) {
+        self.session = session
+        _viewModel = StateObject(wrappedValue: CompanySearchViewModel(session: session))
+    }
 
     var body: some View {
         NavigationStack {
@@ -69,6 +75,7 @@ struct ContentView: View {
                                        isLoading: viewModel.isLoadingCompanyDetail,
                                        errorMessage: viewModel.companyDetailError,
                                        userCoordinate: locationManager.lastLocation,
+                                       session: session,
                                        onRefresh: {
                                            viewModel.refreshSelectedCompanyDetail()
                                        })
@@ -189,7 +196,14 @@ struct ContentView: View {
             Map(position: $cameraPosition, interactionModes: [.pan, .zoom, .rotate, .pitch]) {
                 ForEach(viewModel.annotations) { annotation in
                     Annotation(annotation.title, coordinate: annotation.coordinate) {
-                        CompanyMarkerView(annotation: annotation)
+                        Button {
+                            if let company = viewModel.companies.first(where: { $0.id == annotation.id }) {
+                                viewModel.showDetails(for: company)
+                            }
+                        } label: {
+                            CompanyMarkerView(annotation: annotation)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -351,5 +365,5 @@ private extension MKCoordinateRegion {
 }
 
 #Preview {
-    ContentView()
+    RootTabView(session: AppSession())
 }
