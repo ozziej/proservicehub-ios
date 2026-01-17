@@ -11,16 +11,20 @@ struct RootTabView: View {
     @ObservedObject var session: AppSession
 
     var body: some View {
-        TabView {
-            ContentView(session: session)
-                .tabItem {
-                    Label("Companies", systemImage: "building.2")
-                }
+        if session.isAuthenticated {
+            TabView {
+                ContentView(session: session)
+                    .tabItem {
+                        Label("Companies", systemImage: "building.2")
+                    }
 
-            ProfileHomeView(session: session)
-                .tabItem {
-                    Label("Profile", systemImage: "person.crop.circle")
-                }
+                ProfileHomeView(session: session)
+                    .tabItem {
+                        Label("Profile", systemImage: "person.crop.circle")
+                    }
+            }
+        } else {
+            LoginView(session: session)
         }
     }
 }

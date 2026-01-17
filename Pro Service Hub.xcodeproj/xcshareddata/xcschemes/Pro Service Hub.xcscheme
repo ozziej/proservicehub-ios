@@ -77,7 +77,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "LABOUR_LINK_BASE_URL"
-            value = "http://localhost:8081/api"
+            value = "https://api.proservicehub.app/api"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
