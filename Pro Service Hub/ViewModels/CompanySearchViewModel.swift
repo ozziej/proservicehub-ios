@@ -18,6 +18,7 @@ final class CompanySearchViewModel: ObservableObject {
     @Published var locationQuery: String = ""
     @Published var radiusKilometers: Double = 25
     @Published var locationSuggestions: [Place] = []
+    @Published private(set) var isLoadingLocationSuggestions = false
     @Published var mapRegion: MKCoordinateRegion
     @Published var selectedServiceNames: Set<String> = []
     @Published var ratingFilter: Int = 0
@@ -61,6 +62,7 @@ final class CompanySearchViewModel: ObservableObject {
     private var hasLoadedInitialResults = false
     private var userHasPinnedLocation = false
     private var lastAutomaticCoordinate: CLLocationCoordinate2D?
+    private var suppressNextLocationLookup = false
 
     init(session: AppSession) {
         self.session = session
@@ -102,6 +104,10 @@ final class CompanySearchViewModel: ObservableObject {
                 let response = try await api.fetchCompanies(filters: requestFilters)
                 guard !Task.isCancelled else { return }
                 session.updateToken(response.token)
+                if response.responseCode == .tokenExpired {
+                    handleTokenExpiry()
+                    return
+                }
                 if response.didSucceed {
                     companies = response.companies
                 } else {
@@ -128,16 +134,22 @@ final class CompanySearchViewModel: ObservableObject {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedQuery.count >= 3 else {
             locationSuggestions = []
+            isLoadingLocationSuggestions = false
             return
         }
 
         suggestionTask = Task {
             do {
+                isLoadingLocationSuggestions = true
                 try await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
                 let response = try await api.searchPlaces(query: trimmedQuery)
                 guard !Task.isCancelled else { return }
                 session.updateToken(response.token)
+                if response.responseCode == .tokenExpired {
+                    handleTokenExpiry()
+                    return
+                }
                 locationSuggestions = Array(response.places.prefix(10))
             } catch {
                 guard !Task.isCancelled else { return }
@@ -147,11 +159,13 @@ final class CompanySearchViewModel: ObservableObject {
                 }
                 locationSuggestions = []
             }
+            isLoadingLocationSuggestions = false
         }
     }
 
     func selectLocation(_ place: Place) {
         userHasPinnedLocation = true
+        suppressNextLocationLookup = true
         locationQuery = place.label
         filters.updateCenter(place.coordinate)
         locationSuggestions = []
@@ -159,6 +173,14 @@ final class CompanySearchViewModel: ObservableObject {
         Task {
             await searchCompanies()
         }
+    }
+
+    func consumeSuppressLocationLookup() -> Bool {
+        if suppressNextLocationLookup {
+            suppressNextLocationLookup = false
+            return true
+        }
+        return false
     }
 
     func updateUserLocation(_ coordinate: CLLocationCoordinate2D) {
@@ -185,7 +207,7 @@ final class CompanySearchViewModel: ObservableObject {
         updateMapRegion(center: filters.center)
     }
 
-    func updateMapCenterFromUserInteraction(_ center: CLLocationCoordinate2D) {
+    func updateMapRegionFromUserInteraction(_ region: MKCoordinateRegion, radiusKilometers: Double?) {
         userHasPinnedLocation = true
         mapSearchTask?.cancel()
         mapSearchTask = Task {
@@ -193,8 +215,11 @@ final class CompanySearchViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             locationQuery = ""
             locationSuggestions = []
-            filters.updateCenter(center)
-            updateMapRegion(center: center)
+            if let radiusKilometers {
+                self.radiusKilometers = radiusKilometers
+            }
+            filters.updateCenter(region.center)
+            mapRegion = region
             await searchCompanies()
         }
     }
@@ -252,6 +277,10 @@ final class CompanySearchViewModel: ObservableObject {
         do {
             let response = try await api.fetchCatalogs()
             guard !Task.isCancelled else { return }
+            if response.responseCode == .tokenExpired {
+                handleTokenExpiry()
+                return
+            }
             if response.didSucceed {
                 catalogCategories = Self.makeCatalogCategories(from: response.catalogList)
             } else {
@@ -298,6 +327,10 @@ final class CompanySearchViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
             session.updateToken(detailResponse.token)
+            if detailResponse.responseCode == .tokenExpired {
+                handleTokenExpiry()
+                return
+            }
             if detailResponse.didSucceed {
                 companyDetail = detailResponse.company
             } else {
@@ -319,6 +352,10 @@ final class CompanySearchViewModel: ObservableObject {
             let hoursResponse = try await api.fetchBusinessHours(companyID: company.uuid)
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
+            if hoursResponse.responseCode == .tokenExpired {
+                handleTokenExpiry()
+                return
+            }
             if hoursResponse.didSucceed {
                 companyBusinessHours = hoursResponse.businessHours.sorted { $0.sortOrder < $1.sortOrder }
             } else {
@@ -340,6 +377,10 @@ final class CompanySearchViewModel: ObservableObject {
             let areasResponse = try await api.fetchCompanyAreas(companyID: company.uuid)
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
+            if areasResponse.responseCode == .tokenExpired {
+                handleTokenExpiry()
+                return
+            }
             if areasResponse.didSucceed {
                 companyServiceAreas = areasResponse.companyAreaList
             } else {
@@ -360,5 +401,17 @@ final class CompanySearchViewModel: ObservableObject {
         mapRegion = MKCoordinateRegion(center: center,
                                        span: MKCoordinateSpan(latitudeDelta: mapRegion.span.latitudeDelta,
                                                               longitudeDelta: mapRegion.span.longitudeDelta))
+    }
+
+    private func handleTokenExpiry() {
+        session.clear()
+        companies = []
+        locationSuggestions = []
+        catalogCategories = []
+        companyDetail = nil
+        companyBusinessHours = []
+        companyServiceAreas = []
+        companyDetailError = nil
+        errorMessage = nil
     }
 }

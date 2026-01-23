@@ -15,7 +15,7 @@ struct ContentView: View {
     @State private var cameraPosition: MapCameraPosition = .region(.defaultSearchRegion)
     @State private var isShowingFilters = false
     @State private var isUpdatingMapProgrammatically = false
-    @State private var lastObservedMapCenter = CompanySearchFilters.defaultCenter
+    @State private var lastObservedMapRegion = MKCoordinateRegion.defaultSearchRegion
 
     init(session: AppSession) {
         self.session = session
@@ -45,7 +45,7 @@ struct ContentView: View {
             .onReceive(viewModel.$mapRegion) { region in
                 isUpdatingMapProgrammatically = true
                 cameraPosition = .region(region)
-                lastObservedMapCenter = region.center
+                lastObservedMapRegion = region
             }
             .sheet(isPresented: $isShowingFilters) {
                 FilterSheetView(isPresented: $isShowingFilters,
@@ -96,11 +96,21 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                 TextField("City, suburb, or landmark", text: $viewModel.locationQuery)
                     .textFieldStyle(.roundedBorder)
+                    .overlay(alignment: .trailing) {
+                        if viewModel.isLoadingLocationSuggestions {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .padding(.trailing, 8)
+                        }
+                    }
                     .clearButton(text: $viewModel.locationQuery) {
                         viewModel.locationQuery = ""
                         viewModel.lookupLocations(for: "")
                     }
                     .onChange(of: viewModel.locationQuery, initial: false) { _, newValue in
+                        if viewModel.consumeSuppressLocationLookup() {
+                            return
+                        }
                         viewModel.lookupLocations(for: newValue)
                     }
                 if !suggestions.isEmpty {
@@ -208,7 +218,7 @@ struct ContentView: View {
                 }
             }
             .onMapCameraChange(frequency: .onEnd) { context in
-                handleMapCenterChange(center: context.region.center)
+                handleMapCameraChange(region: context.region)
             }
             .overlay(alignment: .topTrailing) {
                 if viewModel.isLoading {
@@ -233,16 +243,25 @@ struct ContentView: View {
         }
     }
 
-    private func handleMapCenterChange(center: CLLocationCoordinate2D) {
+    private func handleMapCameraChange(region: MKCoordinateRegion) {
         if isUpdatingMapProgrammatically {
             isUpdatingMapProgrammatically = false
             return
         }
-        let delta = hypot(center.latitude - lastObservedMapCenter.latitude,
-                          center.longitude - lastObservedMapCenter.longitude)
-        guard delta > 0.0001 else { return }
-        lastObservedMapCenter = center
-        viewModel.updateMapCenterFromUserInteraction(center)
+        let centerDelta = hypot(region.center.latitude - lastObservedMapRegion.center.latitude,
+                                region.center.longitude - lastObservedMapRegion.center.longitude)
+        let spanDelta = hypot(region.span.latitudeDelta - lastObservedMapRegion.span.latitudeDelta,
+                              region.span.longitudeDelta - lastObservedMapRegion.span.longitudeDelta)
+        guard centerDelta > 0.0001 || spanDelta > 0.0001 else { return }
+        lastObservedMapRegion = region
+        let zoomRadius = radiusKilometers(for: region)
+        viewModel.updateMapRegionFromUserInteraction(region, radiusKilometers: zoomRadius)
+    }
+
+    private func radiusKilometers(for region: MKCoordinateRegion) -> Double {
+        let spanKm = max(region.span.latitudeDelta, region.span.longitudeDelta) * 111.0
+        let radius = max(5, min(100, spanKm / 2))
+        return (radius / 5).rounded() * 5
     }
 
 private var resultsSection: some View {

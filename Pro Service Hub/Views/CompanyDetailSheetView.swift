@@ -148,6 +148,16 @@ struct CompanyDetailSheetView: View {
                 infoRow(icon: "star.fill", title: "Average Rating", value: displayRating)
             }
             .font(.subheadline)
+
+            if let companyCoordinate {
+                Button {
+                    openDirections(to: companyCoordinate, name: detail?.name ?? summary.name)
+                } label: {
+                    Label("Get Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -393,5 +403,21 @@ struct CompanyDetailSheetView: View {
         let kilometers = max(radius / 1_000, 1)
         let delta = min(max(kilometers / 111, 0.05), 2.0)
         return MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)
+    }
+
+    private func openDirections(to coordinate: CLLocationCoordinate2D, name: String) {
+        let destination = MKMapItem(location: CLLocation(latitude: coordinate.latitude,
+                                                         longitude: coordinate.longitude),
+                                    address: nil)
+        destination.name = name
+        if let userCoordinate {
+            let source = MKMapItem(location: CLLocation(latitude: userCoordinate.latitude,
+                                                        longitude: userCoordinate.longitude),
+                                   address: nil)
+            MKMapItem.openMaps(with: [source, destination],
+                               launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
+        } else {
+            destination.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
+        }
     }
 }
