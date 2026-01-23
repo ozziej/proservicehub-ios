@@ -62,6 +62,10 @@ final class CompanyBookingViewModel: ObservableObject {
                 userBookings = []
             }
         } catch {
+            if session.handleUnauthorized(error) {
+                handleTokenExpiry(message: nil)
+                return
+            }
             errorMessage = error.localizedDescription
             userBookings = []
         }
@@ -92,6 +96,10 @@ final class CompanyBookingViewModel: ObservableObject {
                 errorMessage = response.description ?? "Unable to create booking."
             }
         } catch {
+            if session.handleUnauthorized(error) {
+                handleTokenExpiry(message: nil)
+                return
+            }
             errorMessage = error.localizedDescription
         }
     }
@@ -121,6 +129,10 @@ final class CompanyBookingViewModel: ObservableObject {
                 errorMessage = response.description ?? "Unable to update booking."
             }
         } catch {
+            if session.handleUnauthorized(error) {
+                handleTokenExpiry(message: nil)
+                return
+            }
             errorMessage = error.localizedDescription
         }
     }
@@ -146,6 +158,10 @@ final class CompanyBookingViewModel: ObservableObject {
                 errorMessage = response.description ?? "Unable to cancel booking."
             }
         } catch {
+            if session.handleUnauthorized(error) {
+                handleTokenExpiry(message: nil)
+                return
+            }
             errorMessage = error.localizedDescription
         }
     }

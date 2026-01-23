@@ -47,6 +47,10 @@ final class AuthViewModel: ObservableObject {
                 errorMessage = response.description ?? "Unable to log in."
             }
         } catch {
+            if case APIError.unauthorized = error {
+                errorMessage = "Invalid email or password."
+                return
+            }
             errorMessage = error.localizedDescription
         }
     }
@@ -88,6 +92,10 @@ final class AuthViewModel: ObservableObject {
                 errorMessage = response.description ?? "Unable to update profile."
             }
         } catch {
+            if session.handleUnauthorized(error) {
+                errorMessage = "Session expired. Please log in again."
+                return
+            }
             errorMessage = error.localizedDescription
         }
     }

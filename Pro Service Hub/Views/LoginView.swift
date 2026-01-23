@@ -11,6 +11,7 @@ struct LoginView: View {
     @ObservedObject private var session: AppSession
     @StateObject private var viewModel: AuthViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
 
     init(session: AppSession) {
         self.session = session
@@ -20,6 +21,12 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
+                Image("Logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 64)
+                    .accessibilityHidden(true)
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Welcome back")
                         .font(.title2.weight(.semibold))
@@ -67,9 +74,11 @@ struct LoginView: View {
             .padding()
             .navigationTitle("Login")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        dismiss()
+                if presentationMode.wrappedValue.isPresented {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") {
+                            dismiss()
+                        }
                     }
                 }
             }

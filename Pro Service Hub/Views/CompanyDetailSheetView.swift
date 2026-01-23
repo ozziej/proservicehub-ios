@@ -226,11 +226,6 @@ struct CompanyDetailSheetView: View {
                 Text("Log in or create an account to schedule an appointment.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-
-                Button("Book Appointment") {
-                    isShowingLogin = true
-                }
-                .buttonStyle(.borderedProminent)
             }
         }
         .padding()

@@ -14,18 +14,21 @@ enum LabourLinkEnvironment {
            let overrideURL = URL(string: rawValue) {
             return overrideURL
         }
-        return URL(string: "https://api.labourlink.local:8081/api")!
+        return URL(string: "https://api.proservicehub.app/api")!
     }
 }
 
 enum APIError: LocalizedError {
     case invalidResponse
+    case unauthorized
     case serverError(statusCode: Int)
 
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
             return "The server response was invalid."
+        case .unauthorized:
+            return "Your session has expired. Please log in again."
         case .serverError(let statusCode):
             return "The server returned status code \(statusCode)."
         }
@@ -270,6 +273,9 @@ struct LabourLinkAPI {
     private func validate(response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
+        }
+        if httpResponse.statusCode == 401 {
+            throw APIError.unauthorized
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             throw APIError.serverError(statusCode: httpResponse.statusCode)

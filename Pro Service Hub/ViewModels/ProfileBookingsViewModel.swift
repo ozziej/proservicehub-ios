@@ -53,6 +53,10 @@ final class ProfileBookingsViewModel: ObservableObject {
                 bookings = []
             }
         } catch {
+            if session.handleUnauthorized(error) {
+                handleTokenExpiry(message: nil)
+                return
+            }
             errorMessage = error.localizedDescription
             bookings = []
         }

@@ -74,13 +74,6 @@
             ReferencedContainer = "container:Pro Service Hub.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "LABOUR_LINK_BASE_URL"
-            value = "https://api.proservicehub.app/api"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

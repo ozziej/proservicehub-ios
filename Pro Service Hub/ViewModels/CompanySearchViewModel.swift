@@ -110,6 +110,11 @@ final class CompanySearchViewModel: ObservableObject {
                 }
             } catch {
                 guard !Task.isCancelled else { return }
+                if session.handleUnauthorized(error) {
+                    companies = []
+                    errorMessage = nil
+                    return
+                }
                 errorMessage = error.localizedDescription
                 companies = []
             }
@@ -136,6 +141,10 @@ final class CompanySearchViewModel: ObservableObject {
                 locationSuggestions = Array(response.places.prefix(10))
             } catch {
                 guard !Task.isCancelled else { return }
+                if session.handleUnauthorized(error) {
+                    locationSuggestions = []
+                    return
+                }
                 locationSuggestions = []
             }
         }
@@ -251,6 +260,11 @@ final class CompanySearchViewModel: ObservableObject {
             }
         } catch {
             guard !Task.isCancelled else { return }
+            if session.handleUnauthorized(error) {
+                catalogCategories = []
+                catalogErrorMessage = nil
+                return
+            }
             catalogErrorMessage = error.localizedDescription
             catalogCategories = []
         }
@@ -292,6 +306,10 @@ final class CompanySearchViewModel: ObservableObject {
         } catch {
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
+            if session.handleUnauthorized(error) {
+                companyDetailError = nil
+                return
+            }
             companyDetailError = error.localizedDescription
         }
 
@@ -309,6 +327,10 @@ final class CompanySearchViewModel: ObservableObject {
         } catch {
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
+            if session.handleUnauthorized(error) {
+                companyBusinessHours = []
+                return
+            }
             companyBusinessHours = []
         }
 
@@ -326,6 +348,10 @@ final class CompanySearchViewModel: ObservableObject {
         } catch {
             guard !Task.isCancelled else { return }
             guard selectedCompanyForDetail?.uuid == company.uuid else { return }
+            if session.handleUnauthorized(error) {
+                companyServiceAreas = []
+                return
+            }
             companyServiceAreas = []
         }
     }
