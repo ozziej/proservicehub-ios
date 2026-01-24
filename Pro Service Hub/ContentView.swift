@@ -136,6 +136,11 @@ struct ContentView: View {
                     }
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(.separator), lineWidth: 0.5))
+                } else if viewModel.locationQuery.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3,
+                          !viewModel.isLoadingLocationSuggestions {
+                    Text("No locations found.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 

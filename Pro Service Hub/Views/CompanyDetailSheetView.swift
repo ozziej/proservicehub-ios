@@ -414,6 +414,7 @@ struct CompanyDetailSheetView: View {
             let source = MKMapItem(location: CLLocation(latitude: userCoordinate.latitude,
                                                         longitude: userCoordinate.longitude),
                                    address: nil)
+            source.name = "My Location"
             MKMapItem.openMaps(with: [source, destination],
                                launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
         } else {

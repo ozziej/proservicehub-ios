@@ -259,6 +259,17 @@ struct LabourLinkAPI {
         return try Self.bookingDateDecoder.decode(BookingListResponse.self, from: data)
     }
 
+    func fetchContributionStats(userUuid: String) async throws -> ContributionStatsResponse {
+        let url = baseURL.appendingPathComponent("contributions/\(userUuid)")
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(makeAuthorizationHeaderValue(), forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try JSONDecoder().decode(ContributionStatsResponse.self, from: data)
+    }
+
     func deleteBooking(bookingUuid: String) async throws -> BookingResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("booking/delete/\(bookingUuid)"))
         request.httpMethod = "DELETE"
